@@ -19,7 +19,7 @@ namespace Application
         public async Task<int> Add(Pickup pickup)
         {
 
-            string columnNames = "AddressId,CustomerId,PickupDate,Status,TotalWeight,CreatedAt,UpdatedAt";
+            string columnNames = "AddressId,CustomerId,PickupDate,PickupTime,Status,TotalWeight,CreatedAt,UpdatedAt";
             return await _pickupRepository.Add(columnNames, pickup, "Pickup");
 
         }

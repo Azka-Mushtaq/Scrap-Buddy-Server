@@ -11,6 +11,21 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Firebase Initialization
+FirebaseInitializer.Initialize();
+
+
+// Enable CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFlutterApp",
+        policy => policy
+            .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader());
+});
+
+
 // Generic Repositories
 builder.Services.AddScoped<IRepository<Domain.User>, GenericRepository<Domain.User>>();
 builder.Services.AddScoped<IRepository<Domain.ScrapItem>, GenericRepository<Domain.ScrapItem>>();
@@ -25,9 +40,11 @@ builder.Services.AddScoped<IRepository<Vehicle>, GenericRepository<Vehicle>>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<ScrapItemService>();
 builder.Services.AddScoped<PickupService>();
+builder.Services.AddScoped<FirebaseNotificationService>();
+builder.Services.AddScoped<UserFcmTokenService>();
 
 // SignalR
-builder.Services.AddSignalR(); // Register SignalR
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -38,6 +55,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Apply CORS policy
+app.UseCors("AllowFlutterApp");
+
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
@@ -45,7 +65,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Map the SignalR Hub
-app.MapHub<PickupHub>("/pickupHub"); // Map SignalR hub endpoint
+app.MapHub<PickupHub>("/pickupHub");
 
 app.Run();
-

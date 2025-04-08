@@ -15,13 +15,52 @@ namespace Web__Api.Controllers
         private readonly IHubContext<PickupHub> _pickupHub;
         private readonly UserService _userService;
         private readonly PickupService _pickupService;
-        public UserController(UserService userService, PickupService pickupService,IHubContext<PickupHub> pickupHub)
+        private readonly FirebaseNotificationService _firebaseNotificationService;
+        private readonly UserFcmTokenService _userFcmTokenService;
+
+        public UserController(UserFcmTokenService userFcmTokenService, UserService userService, 
+            PickupService pickupService,IHubContext<PickupHub> pickupHub,
+            FirebaseNotificationService firebaseNotificationService)
         {
+            _userFcmTokenService = userFcmTokenService;
+            _firebaseNotificationService = firebaseNotificationService;
             _pickupService = pickupService;
             _userService = userService;
             _pickupHub = pickupHub;
         }
 
+
+        [HttpPost]
+        [Route("addUserFcmToken")]
+        public async Task<int> AddUserFcmToken(UserFcmToken webFcmToken)
+        {
+            if (webFcmToken == null)
+            {
+                throw new ArgumentNullException(nameof(webFcmToken), "FcmToken cannot be null");
+            }
+
+            try
+
+            {
+
+                var fcmToken = new Domain.UserFcmToken
+                {
+                    UserId = webFcmToken.UserId,
+                    Topic = webFcmToken.Topic,
+                    FcmToken = webFcmToken.FcmToken,
+                    CreatedAt = DateTime.ParseExact(webFcmToken.CreatedAt, "yyyy-mm-dd", null),
+                    UpdatedAt = DateTime.ParseExact(webFcmToken.CreatedAt, "yyyy-mm-dd", null),
+                    IsActive = webFcmToken.IsActive
+
+                };
+                var tokenId = await _userFcmTokenService.AddFcmToken(fcmToken);
+                return tokenId;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error adding FcmToken", ex);
+            }
+        }
 
 
         [HttpGet]
@@ -74,6 +113,8 @@ namespace Web__Api.Controllers
         [Route("authenticate")]
         public async Task<User> AuthenticateUser(LoginRequest loginCredentials)
         {
+
+
             Domain.User user = await _userService.Find(loginCredentials.email, loginCredentials.password);
 
             // Define the format for DateTime and TimeSpan
@@ -133,6 +174,11 @@ namespace Web__Api.Controllers
                 Role = webUser.Role,
             };
 
+
+            /*
+             I don't want to send notification to all users.. i just want to send to some users... I have stored all users in db.. we will get specific users out of it.. and then need to send to them....
+And tell me about 
+             */
             return await _userService.Add(user);
         }
 
@@ -252,7 +298,17 @@ namespace Web__Api.Controllers
                 UpdatedAt = DateTime.Now
             };
 
-            await _pickupHub.Clients.All.SendAsync("ReceivePickupNotification", pickup.CustomerId, "New pickup scheduled");
+
+            try
+            {
+                var tokens = await _userFcmTokenService.GetTokensByTopic("scrap picker");
+                await _firebaseNotificationService.SendNotificationToTokensAsync(tokens, "New Pickup Added", $"A new pickup with ID has been scheduled.Click to confirm");
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
 
             return await _pickupService.Add(pickup);
 
@@ -342,6 +398,7 @@ namespace Web__Api.Controllers
         {
             await _userService.Delete(id);
         }
+
 
 
     }
